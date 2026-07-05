@@ -15,5 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - name: project-baseline self-check (rule-set integrity)
+        run: node tools/baseline/check.mjs --self-check
       - name: project-baseline gate
         run: node tools/baseline/check.mjs

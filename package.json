@@ -9,5 +9,5 @@
     "lint": "eslint ."
   },
   "license": "MIT",
-  "devDependencies": { "eslint": "^9" }
+  "devDependencies": { "eslint": "^10" }
 }

@@ -1,20 +1,22 @@
 # project-baseline v2 (2.1)
 
-A **testable readiness standard** for new projects. Every lesson is a rule; a zero-dependency runner scores a repo and **fails CI on the blockers**. The judgment calls a script can't make become a dated **sign-off ledger** — so even those leave a checkable trace.
+A **testable readiness standard** for new projects. Every lesson is a rule; a zero-dependency runner scores a repo and **fails CI on the blockers**. The judgment calls a script can't make become a dated **[sign-off ledger](GLOSSARY.md#sign-off-ledger)** — so even those leave a checkable trace.
 
 > The throughline: *don't trust a written promise — make something check it.* A checklist doc would just become another thing that drifts. This is the checklist as an exit code.
 
-**v1** distilled 20 rules from three of one builder's repos (kid-p, antigone, GTA_6_CAD). That sample was thin. **v2** pressure-tested v1 against the field's actual prior art — OpenSSF Scorecard, SLSA, the Twelve-Factor App, Google's SRE books, Diátaxis, Keep a Changelog, repolinter, Backstage/Cortex/OpsLevel, Stryker, and ~40 more sources — kept everything v1 had, and added what the field agreed v1 was missing. Each candidate was **adversarially verified** (is the source real? is it robot-checkable at rest? does it actually add over v1?) before it earned a place; 15 "looks-thorough-checks-nothing" candidates were dropped.
+> **New to the jargon?** Terms like [SBOM](GLOSSARY.md#sbom), [SLSA](GLOSSARY.md#slsa), [provenance](GLOSSARY.md#provenance), and [sign-off ledger](GLOSSARY.md#sign-off-ledger) are defined in the [glossary](GLOSSARY.md).
 
-**69 rules across 10 categories.** 14 blockers · 50 warnings · 5 sign-offs. See `gap-analysis.md` for the full research trail and `gap-research.json` for the raw verified findings.
+**v1** distilled 20 rules from three of the author's own repos. That sample was thin. **v2** pressure-tested v1 against the field's actual prior art — [OpenSSF Scorecard](GLOSSARY.md#openssf-scorecard), [SLSA](GLOSSARY.md#slsa), the [Twelve-Factor App](GLOSSARY.md#twelve-factor-app), Google's SRE books, [Diátaxis](GLOSSARY.md#diataxis), [Keep a Changelog](GLOSSARY.md#keep-a-changelog), [repolinter](GLOSSARY.md#repolinter), [Backstage/Cortex/OpsLevel](GLOSSARY.md#service-catalog), Stryker, and ~40 more sources — kept everything v1 had, and added what the field agreed v1 was missing. Each candidate was **adversarially verified** (is the source real? is it robot-checkable at rest? does it actually add over v1?) before it earned a place; 15 "looks-thorough-checks-nothing" candidates were dropped.
+
+**69 rules across 10 categories.** 14 blockers · 50 warnings · 5 sign-offs.
 
 ## Profiles — v2 stays sharp by only running what fits
 
-Not every rule fits every repo. A pre-code planning repo shouldn't be nagged about health endpoints; a CLI shouldn't be told to publish an SBOM. So rules carry a **profile**:
+Not every rule fits every repo. A pre-code planning repo shouldn't be nagged about health endpoints; a CLI shouldn't be told to publish an [SBOM](GLOSSARY.md#sbom). So rules carry a **[profile](GLOSSARY.md#profile)**:
 
 - **core** (54 rules) — always on. Universal, high-confidence, machine-checkable.
-- **service** (6 rules) — **auto-on when `project_type=service`.** Operability rules (health check, structured logs, graceful shutdown, runbook) that only make sense for a running service.
-- **advanced** (9 rules) — **opt-in** via `config.profiles: ["advanced"]`. Expert/niche rules (SBOM, code-scanning, mutation testing, symbol-integrity) that would be noise on most repos.
+- **service** (6 rules) — **auto-on when `project_type=service`.** Operability rules ([health check](GLOSSARY.md#health-check), [structured logs](GLOSSARY.md#structured-logging), [graceful shutdown](GLOSSARY.md#graceful-shutdown), [runbook](GLOSSARY.md#runbook)) that only make sense for a running service.
+- **advanced** (9 rules) — **opt-in** via `config.profiles: ["advanced"]`. Expert/niche rules (SBOM, [code-scanning](GLOSSARY.md#sast), [mutation testing](GLOSSARY.md#mutation-testing), symbol-integrity) that would be noise on most repos.
 
 A rule that doesn't apply to your `project_type` or active profile **skips** (shown as `n/a`) — it never counts against you. That's how the standard grew 3× in rules without getting 3× naggier on any single repo.
 
@@ -81,7 +83,7 @@ The three opt-in `*_globs` keys default to empty, so those rules stay silent unt
 
 ## The rules
 
-`blocker` fails CI · `warn` is advisory · `sign-off` (manual) is satisfied only by a dated entry in `.project-baseline/signoff.json`.
+[`blocker`](GLOSSARY.md#blocker) fails CI · [`warn`](GLOSSARY.md#warn) is advisory · [`sign-off`](GLOSSARY.md#sign-off-ledger) (manual) is satisfied only by a dated entry in `.project-baseline/signoff.json`.
 
 <!-- generated from rules.json; regenerate if rules change -->
 ### Build & execution (10)

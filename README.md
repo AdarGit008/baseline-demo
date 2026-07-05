@@ -5,8 +5,11 @@
 A tiny, self-contained reference repository that scores a **perfect
 [project-baseline](tools/baseline/README.md)**: `0 blockers, 100% readiness`.
 It exists so you can see what "green" looks like across every category the
-standard checks — build, tests, security & supply-chain, reproducibility,
+standard checks — build, tests, security & [supply-chain](tools/baseline/GLOSSARY.md#supply-chain), reproducibility,
 code quality, change governance, community, and context/doc-drift.
+
+> New to a term in these docs? The [glossary](tools/baseline/GLOSSARY.md) explains
+> the DevOps and supply-chain jargon in plain language.
 
 ## Install
 
@@ -28,8 +31,8 @@ as a required gate on every push (see [`.github/workflows/ci.yml`](.github/workf
 
 ## The status stamp
 
-`docs/start-here.md` carries a `last-verified: <sha> <date>` stamp naming the
-last commit whose state was reconciled — CTX-01 accepts any commit within a few
-of `HEAD` as fresh, so a stamp that names the previous commit (as here) passes.
-Reconcile it in your end-session ritual; a stamp that points off-branch or falls
-far behind `HEAD` fails.
+`docs/start-here.md` carries a [`last-verified: <sha> <date>` stamp](tools/baseline/GLOSSARY.md#last-verified-stamp)
+naming the last commit whose state was reconciled — CTX-01 accepts any commit
+within a few of `HEAD` as fresh, so a stamp that names the previous commit (as
+here) passes. Reconcile it whenever you wrap up a change; a stamp that points
+off-branch or falls far behind `HEAD` fails.

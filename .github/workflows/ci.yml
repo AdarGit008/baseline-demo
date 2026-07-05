@@ -14,6 +14,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - name: Reconcile status stamp to this commit (end-session-ritual pattern)
-        run: sed -i "s|^last-verified:.*|last-verified: ${GITHUB_SHA} $(date -u +%Y-%m-%d)|" docs/start-here.md
+        run: |
+          sed -i "s|^last-verified:.*|last-verified: $GITHUB_SHA $(date -u +%Y-%m-%d)|" docs/start-here.md
       - name: project-baseline gate
-        run: node tools/baseline/check.mjs
+        run: |
+          node tools/baseline/check.mjs

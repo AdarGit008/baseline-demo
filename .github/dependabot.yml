@@ -2,4 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
-    schedule: { interval: "weekly" }
+    schedule:
+      interval: "weekly"
+    # security updates only — keep this reference repo free of routine version-bump PRs
+    open-pull-requests-limit: 0

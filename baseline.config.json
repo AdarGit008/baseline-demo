@@ -1,0 +1,7 @@
+{
+  "project_type": "node",
+  "makes_external_claims": false,
+  "bootstrap_command": "npm test",
+  "status_file": "docs/start-here.md",
+  "sources_of_truth": { "status": "docs/start-here.md", "decisions": "docs/decisions/" }
+}

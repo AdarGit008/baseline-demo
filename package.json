@@ -1,0 +1,13 @@
+{
+  "name": "baseline-demo",
+  "version": "1.0.0",
+  "description": "Reference repo that scores a perfect project-baseline (0 blockers, 100%).",
+  "type": "module",
+  "engines": { "node": "20" },
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint ."
+  },
+  "license": "MIT",
+  "devDependencies": { "eslint": "^9" }
+}

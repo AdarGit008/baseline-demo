@@ -1,0 +1,3 @@
+title = "gitleaks config (baseline SEC-12)"
+[allowlist]
+description = "demo repo has no real secrets"

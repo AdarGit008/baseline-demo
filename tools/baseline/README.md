@@ -29,6 +29,60 @@ Three failure layers showed up across the original repos, and the drift **climbs
 
 v1 covered those three layers well. v2 adds the layers a *shipping* repo lives or dies on — **security & supply-chain, reproducibility, operability, code-quality gates, change governance** — plus deeper **context/doc-drift** checks (dead links, doc freshness, generated-file provenance). The bias is unchanged: everything a machine can verify, biased toward blocking the things that are unambiguous.
 
+## Architecture & data flow
+
+These diagrams mirror `check.mjs` — they're the runner's actual control flow, not a sketch. The whole thing is one zero-dependency Node file: it indexes the repo, resolves config, then walks every rule through the same gate → evaluate → tag pipeline.
+
+**The components.** Three inputs (your config, the rule set, the target repo) feed one engine; a human [sign-off ledger](GLOSSARY.md#sign-off-ledger) covers the judgments a script can't make.
+
+```mermaid
+flowchart LR
+  CFG["baseline.config.json — intent"] --> RES
+  RULES["rules.json — 69 rules"] --> EVAL
+  REPO["target repo: files + git"] --> IDX
+  subgraph ENGINE["check.mjs (zero-dependency)"]
+    IDX["file index + git helpers"] --> EVAL["~20 check evaluators"]
+    RES["config resolution"] --> EVAL
+  end
+  SO["signoff.json — human judgments"] --> EVAL
+  EVAL --> OUT["scorecard + exit code"]
+```
+
+**The run.** One pass: build the file index and git state, resolve config (defaults → auto-detected `project_type` → `baseline.config.json` → `--config` → `--profile`), decide which [profiles](GLOSSARY.md#profile) are active, then score every rule and reduce to a readiness % and an [exit code](GLOSSARY.md#exit-code).
+
+```mermaid
+flowchart TD
+  A["CLI args: --repo / --config / --profile / --no-exec / --json"] --> B["Index repo files: walk + git ls-files + HEAD"]
+  B --> C["Resolve config: DEFAULTS then detectType then baseline.config.json then --config then --profile"]
+  C --> D["Active profiles: core always; service auto if type=service; others opt-in"]
+  C --> E["Claims active? register present OR makes_external_claims:true"]
+  D --> F{"for each rule"}
+  E --> F
+  F --> G["evalCheck by check.kind"]
+  G --> H["map result to PASS / FAIL / WARN / SIGN-OFF / SKIP"]
+  H --> I["aggregate: readiness percent + blocker count"]
+  I --> J["exit 1 if any blocker FAILs, else exit 0"]
+```
+
+**Per-rule gate → tag.** Every rule runs the same funnel. Three gates can short-circuit it to `SKIP` (wrong type, off profile, opted out) before the check ever runs; only a `blocker` that evaluates to `false` fails CI.
+
+```mermaid
+flowchart TD
+  R["rule"] --> A{"applies_to includes project_type?"}
+  A -- "no" --> S1["SKIP — n/a for type"]
+  A -- "yes / unset" --> P{"profile in ACTIVE set?"}
+  P -- "no" --> S2["SKIP — profile off"]
+  P -- "yes / core" --> Q{"requires satisfied?"}
+  Q -- "no" --> S3["SKIP — opted out / claims off"]
+  Q -- "yes" --> E["evalCheck → ok"]
+  E -- "ok = null" --> S4["SKIP — not evaluable"]
+  E -- "ok = true" --> PASS["PASS"]
+  E -- "ok = false, has sign-off" --> SO["SIGN-OFF"]
+  E -- "ok = false, soft" --> W1["WARN"]
+  E -- "ok = false, severity = blocker" --> F["FAIL — fails CI"]
+  E -- "ok = false, severity = warn" --> W2["WARN"]
+```
+
 ## Quickstart
 ```bash
 # 1. drop the toolkit in (e.g. tools/baseline/)

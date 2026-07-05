@@ -7,15 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "20"
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      - name: Reconcile status stamp to this commit (end-session-ritual pattern)
-        run: |
-          sed -i "s|^last-verified:.*|last-verified: $GITHUB_SHA $(date -u +%Y-%m-%d)|" docs/start-here.md
       - name: project-baseline gate
-        run: |
-          node tools/baseline/check.mjs
+        run: node tools/baseline/check.mjs

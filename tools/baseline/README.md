@@ -74,6 +74,8 @@ Everything auto-detects; override only what you need in `baseline.config.json` (
 | `generated_globs` | **opt-in** for CTX-08 — generated files that must carry a `DO NOT EDIT` marker. Empty = rule skips. |
 | `grounding_docs` | **opt-in** for CTX-09 — required docs that must exist + be non-empty. Empty = rule skips. |
 | `decision_globs` / `doc_globs` | where ADR-status/forward-link and link/path checks look. |
+| `stamp_max_lag_commits` | CTX-01 accepts a status stamp naming HEAD or an ancestor within this many commits (default 3); off-branch/bogus fails, honest-but-older warns. |
+| `doc_lag_days` | CTX-11 warns when a doc's anchored `sources:` code was committed more than this many days after the doc (default 30). |
 
 The three opt-in `*_globs` keys default to empty, so those rules stay silent until you adopt the convention — no nagging a repo that hasn't opted in.
 

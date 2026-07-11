@@ -1,0 +1,15 @@
+{
+  "_note": "The repo's declared identity and posture (C39) — the one stored file baseline requires. Schema: tools/baseline/schema/repo.schema.json; validated by DESC-01. Multi-lane is the V2 default posture: this reference repo dogfoods lanes as they land (M5).",
+  "schema_version": 1,
+  "type": "node",
+  "lifecycle": "production",
+  "maturity": "released",
+  "owner": "AdarGit008",
+  "workflow": "multi-lane",
+  "anchoring": "strict",
+  "ground_truth_boundary": { "forge": "github", "default_branch": "main" },
+  "lanes": { "namespace": "lane/*", "lease_ttl": "7d" },
+  "join_keys": ["Baseline-Agent", "Baseline-Issue"],
+  "engine_pin": "2.x",
+  "staleness": { "facts_ttl": "1h", "orient_ceiling": "24h" }
+}

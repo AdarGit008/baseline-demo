@@ -5,6 +5,7 @@
 // derived (FS9 — never hard-refuses; only --strict turns forge-unreachability into exit 1).
 // Generalizes the ADR-0009 prototype tools/orient.mjs.
 import path from 'node:path'
+import { makeOpt } from './util.mjs'
 import { indexRepo } from './repo.mjs'
 import { loadDescriptor } from './descriptor.mjs'
 import { capabilityProbe } from './probe.mjs'
@@ -21,7 +22,9 @@ const ageOf = (iso) => {
 }
 
 export async function runOrient(argv) {
-  const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true) : d }
+  if (argv[0] === '--help' || argv[0] === '-h') { console.log('baseline orient — derived-state survey for session start\n  usage: baseline orient [--repo DIR] [--json] [--strict]'); return 0 }
+  const opt = makeOpt(argv)
+  if (opt('--repo', null) === true) { console.error('orient: --repo needs a value'); return 2 }
   const REPO = path.resolve(opt('--repo', process.cwd()))
   const JSON_OUT = !!opt('--json', false)
   const STRICT = !!opt('--strict', false)

@@ -19,3 +19,5 @@ jobs:
         run: node tools/baseline/check.mjs --self-check
       - name: project-baseline gate
         run: node tools/baseline/check.mjs
+      - name: orientation survey (derived state; degrades without forge auth)
+        run: node tools/baseline/baseline.mjs orient --repo .

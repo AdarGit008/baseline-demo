@@ -13,6 +13,27 @@ export const makeOptAll = args => name => args.reduce((a, v, i) => (args[i] === 
 // (records.mjs) and every reader (doc-code-age, doc-freshness) share it.
 export const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
+// One opinion about agent-identity slugs — log's record frontmatter and lane
+// claim's Baseline-Agent trailer must derive the SAME name or the join lies.
+export const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24)
+
+// The lane join-key trailers (schema/keys.md): `lane claim` WRITES them (M5a);
+// derive/lanes + join READ them (M5b). One home, or the lane⇄agent join lies.
+export const TRAILER_ISSUE = 'Baseline-Issue'
+export const TRAILER_AGENT = 'Baseline-Agent'
+
+// The inverse of claim's namespace substitution: 'lane/*' + 'lane/7' -> 7. One home for
+// both directions of the ref⇄issue anchor (claim writes ns.replace('*', issue); every
+// reader — derive/lanes, reclaim, the git-plane trailer walk — parses it back through
+// here). null when the ref doesn't match the namespace or the star isn't an issue number.
+export const escRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+export function issueOf(namespace, ref) {
+  const i = String(namespace).indexOf('*')
+  if (i < 0) return null
+  const m = new RegExp('^' + escRe(namespace.slice(0, i)) + '(.+)' + escRe(namespace.slice(i + 1)) + '$').exec(String(ref))
+  return m && /^[1-9][0-9]*$/.test(m[1]) ? +m[1] : null
+}
+
 // One clock for all record tooling (log / jdg / the signoff bridge): the
 // BASELINE_LOG_NOW override parsed + ISO-normalized, null when unparseable —
 // callers decide whether that's a usage error (CLIs) or a wall-clock fallback.
@@ -40,15 +61,37 @@ export function nonEmpty(v) { return v != null && v !== '' && !(Array.isArray(v)
 
 export function globToRe(g) {
   let re = ''
+  const push = frag => { // collapse an adjacent identical quantifier: `.*.*`/`[^/]*[^/]*`
+    if ((frag === '.*' || frag === '[^/]*') && re.endsWith(frag)) return // are catastrophic backtracking
+    re += frag                                                            // fuel and mean the same set
+  }
   for (let i = 0; i < g.length; i++) {
     const c = g[i]
-    if (c === '*') { if (g[i + 1] === '*') { re += '.*'; i++; if (g[i + 1] === '/') i++ } else re += '[^/]*' }
+    if (c === '*') { if (g[i + 1] === '*') { push('.*'); i++; if (g[i + 1] === '/') i++ } else push('[^/]*') }
     else if (c === '?') re += '.'
     else if ('/.+^${}()|[]\\'.includes(c)) re += '\\' + c
     else re += c
   }
   return new RegExp('^' + re + '$')
 }
+
+// Issue-reference extraction, shared by orient's divergence headline and the DIV rules —
+// ONE spelling or the two surfaces disagree. Boundary-guarded so a URL fragment
+// (`.../rollout#3`), an HTML entity (`&#39;`), or `x#7y` is NOT a reference: `#` must
+// not follow a word char, `&`, or `/`. `closes` matches GitHub's closing grammar
+// (keyword + optional colon + `#N` OR the full issues URL).
+export const refs = (s) => s ? [...String(s).matchAll(/(?:^|[^\w&/])#(\d+)\b/g)].map(m => +m[1]) : []
+export const closes = (s) => s ? [
+  ...String(s).matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+(?:#(\d+)\b|https?:\/\/[^\s/]+\/[^\s/]+\/[^\s/]+\/issues\/(\d+)\b)/gi),
+].map(m => +(m[1] ?? m[2])) : []
+
+// Strip C0/DEL control bytes (keeping tab + newline) from any repo-authored string
+// before it reaches a terminal — a hostile descriptor field, record next:, or forge
+// title must not inject cursor moves that overwrite a printed FAIL with fake PASS text.
+// Everything a renderer prints raw (rule details, lane/PR/issue titles, next:, agent)
+// routes through here; --json and the exit code are unaffected.
+export const sanitizeTTY = (s) => s == null ? s : String(s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
+
 
 export function stripLineComment(line) { // strip a #/// comment only when it's OUTSIDE quotes (so "#fff" or echo "a # b" survive)
   let inS = false, inD = false

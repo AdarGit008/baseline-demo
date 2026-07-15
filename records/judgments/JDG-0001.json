@@ -1,0 +1,10 @@
+{
+  "record": "judgment/1",
+  "id": "JDG-0001",
+  "kind": "deviation",
+  "date": "2026-07-15",
+  "by": "claude",
+  "subject": "descriptor change: lanes.families [adopt/*, release/*] declared",
+  "reason": "Additive placement declaration, FLOW-04's consumer: the repo's real non-lane branch inventory (adopt/* adoption lanes, release/* cuts) is declared instead of warned about forever. No posture weakening — namespace, lease_ttl, anchoring, workflow all unchanged. Revisit when M7 tunes lane knobs on dogfood data.",
+  "review_by": "2026-10-15"
+}

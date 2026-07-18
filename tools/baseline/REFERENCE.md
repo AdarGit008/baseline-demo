@@ -1,4 +1,4 @@
-# project-baseline v2 (2.3)
+# project-baseline v2 (2.4)
 
 A **testable readiness standard** for new projects. Every lesson is a rule; a zero-dependency runner scores a repo and **fails CI on the blockers**. The judgment calls a script can't make become a dated **[sign-off ledger](GLOSSARY.md#sign-off-ledger)** — so even those leave a checkable trace.
 
@@ -8,7 +8,7 @@ A **testable readiness standard** for new projects. Every lesson is a rule; a ze
 
 **v1** distilled 20 rules from three of the author's own repos. That sample was thin. **v2** pressure-tested v1 against the field's actual prior art — [OpenSSF Scorecard](GLOSSARY.md#openssf-scorecard), [SLSA](GLOSSARY.md#slsa), the [Twelve-Factor App](GLOSSARY.md#twelve-factor-app), Google's SRE books, [Diátaxis](GLOSSARY.md#diataxis), [Keep a Changelog](GLOSSARY.md#keep-a-changelog), [repolinter](GLOSSARY.md#repolinter), [Backstage/Cortex/OpsLevel](GLOSSARY.md#service-catalog), Stryker, and ~40 more sources — kept everything v1 had, and added what the field agreed v1 was missing. Each candidate was **adversarially verified** (is the source real? is it robot-checkable at rest? does it actually add over v1?) before it earned a place; 15 "looks-thorough-checks-nothing" candidates were dropped.
 
-**86 rules across 14 categories.** 14 blockers · 67 warnings · 5 sign-offs.
+**88 rules across 15 categories.** 15 blockers · 68 warnings · 5 sign-offs.
 
 ## Profiles — v2 stays sharp by only running what fits
 
@@ -58,10 +58,10 @@ These diagrams mirror the runner — they're its actual control flow, not a sket
 ```mermaid
 flowchart LR
   CFG["baseline.config.json — intent"] --> RES
-  RULES["rules/ — 86 rules (manifest: rules.json)"] --> EVAL
+  RULES["rules/ — 88 rules (manifest: rules.json)"] --> EVAL
   REPO["target repo: files + git"] --> IDX
   subgraph ENGINE["check.mjs (zero-dependency)"]
-    IDX["file index + git helpers"] --> EVAL["~36 check evaluators"]
+    IDX["file index + git helpers"] --> EVAL["~39 check evaluators"]
     RES["config resolution"] --> EVAL
   end
   SO["signoff.json — human judgments"] --> EVAL
@@ -140,6 +140,49 @@ No install, no dependencies — needs only Node ≥ 18 and `git`.
       - run: node tools/baseline/check.mjs      # drop --no-exec so BUILD-05 runs the real Task 1
 ```
 Make `baseline` a required status check. Now the standard can't rot — it's enforced on every PR. (That's rule **BUILD-06**, checking itself.)
+
+## Admit — merge-point revalidation (V2 M6a)
+
+*A verdict is valid only for the state it evaluated.* A green check from Tuesday's branch tip says nothing about merging into Friday's main — `baseline admit` re-derives at the merge point:
+
+```
+baseline admit [--repo DIR] [--target REF] [--json]     # exit 0 admitted · 1 refused · 2 usage/environment
+```
+
+**Refusal is the command's contract, not a rule severity.** Admit exits 1 on exactly three legs: **(a) staleness** — the target tip is not an ancestor of HEAD (deterministic git ancestry, judged before any rule; re-derive by merging/rebasing the target — on GitHub, branch protection's *require branches up to date* is this refusal's forge-side twin); **(b) an admit-context blocker FAIL** — at M6a exactly **DESC-03**; **(c) gating-source loss** — ancestry unprovable (a shallow clone: use `fetch-depth: 0`) or the admitted range's diff unreadable (DESC-03's input). An unresolvable *target* is exit 2 — an environment refusal where nothing was evaluated at all. A warn rule's unreachable source SKIPs labeled, exactly as in `check` — advisory findings never block a merge via unavailability.
+
+**The target's posture judges (FS1).** The descriptor is read from the target ref (`origin/<default_branch>`), never the incoming branch — branch-local descriptor edits are advisory until merged, and changing the descriptor at all is DESC-03's business. The run's `contexts` gate means admit evaluates only rules declaring the `admit` context (FLOW/DIV/REC advisories + DESC-03 + MERGE-02); the exec-class crown (BUILD-05) never runs here — the required `check` re-runs at the merge-relevant SHA instead.
+
+**Relief that stays reachable.** On a gating-source loss, an unexpired `break-glass` JDG with `gate: admit` **on the target ref** admits with the finding on the record (FS5 — a break-glass riding the incoming branch relieves nothing). And the relief PR lands whenever tree+history facts are intact: a range that is *nothing but* schema-valid judgment additions carrying such a break-glass takes the **JDG-only admission path** — judged from tree+history alone, the forge closed and labeled (a git-plane outage falls to the layer-0 admin bypass, documented in CONTRACT.md). Break-glass never relieves staleness (data-plane truth) or DESC-03 (whose relief is its own same-PR judgment). The binding ladder — merge queue · required check + up-to-date · advisory-with-detection — is CONTRACT.md's §Admit binding.
+
+## Reconcile — post-merge revalidation (V2 M6b)
+
+*The cron against main IS post-merge revalidation* (MERGE-03 dissolved into this command). `baseline reconcile` re-derives the default branch's standing and files what it finds as **lifecycle-managed issues** — no writes to the repo or main, ever; the issue tracker is the whole write surface:
+
+```
+baseline reconcile [--repo DIR] [--json] [--dry-run] [--target REF]   # exit 0 delivered · 1 delivery failed · 2 usage/environment
+```
+
+**Four finding sources**: the engine at context `reconcile` (repo-scoped rules; lane rules are excluded structurally — this runs ON the default branch); the **JDG sweep** at the tip (`evaluateJudgment` over the whole ledger: tripped/expired file, invalid records file, drifted/unresolvable ride the report — `review_by` is the backstop); the **landed-record re-scan** (scrub over `records/**` blobs at the tip, allowlist read at the tip, deterministic tier only — a landed secret is live until rotated); and **merged-while-red** over the recent merged-PR window (20) — an admit-named check run with conclusion `failure` at a merged PR's *head* sha files the morning-after issue demanding the retroactive judgment (subject = the short merge sha; cleared by the *existence* of a schema-valid judgment at the tip naming that sha — expiry policing belongs to the sweep; never auto-closed by time).
+
+**The dedup lifecycle** rides an HTML marker (`<!-- baseline:<id>:<subject> fp:<hash> -->`) plus the **`baseline` label** (the operator's filter/mute affordance and the scan's bound): absent→file · changed→comment + fp re-stamp · cleared→close naming the sha (**positive re-evaluation only — a SKIP is never a clear**) · recurred→reopen the same thread when the close was reconcile's own (`bot-closed` stamp); **a human close is a judgment** — advisory engine rows stay closed (at most one comment on new content), while the deterministic-integrity classes (judgments, landed secrets, merged-while-red) reopen over any close. Cap: 10 creations+reopens per run, overflow in ONE self-draining rollup; a truncated scan suppresses creates entirely.
+
+**The binding law.** Findings bind to the sha they were derived at, so mutations require the evaluated tree to BE the fetched tip, clean. Behind-but-on-the-line or dirty degrades to a labeled **report-only** run (findings printed, nothing filed, catch-up recipe included, exit 0); a HEAD off the target line is exit 2. Exit 1 means *delivery* failed — including a clean run that could not read the tracker (a dead cron must not stay green); an unexpired `break-glass (gate: reconcile)` at the tip relieves a **live** outage, labeled — never a replay-plan mismatch, and a posture-closed forge (`multi-lane-local`) is exit 2 up front, not a relievable outage. Findings alone never redden the cron: the tracker is the alert surface, and `orient` headlines open baseline-filed issues every session.
+
+## Generated views — `gen index` + `gen --check` (V2 M6c)
+
+A **generated view** is a tracked markdown file whose first line is the marker `<!-- baseline:generated <kind> — do not edit by hand; regenerate: baseline gen <kind> -->` — static bytes, no hash, no timestamp, no version (a version in the marker would drift every view on every vendor bump; that case lives in the remedy text instead). One kind ships at M6c:
+
+```
+baseline gen index [--repo DIR] [--out PATH]     # write the view (default docs/INDEX.md)
+baseline gen --check [--repo DIR]                # regenerate every marked view, byte-compare (CI drift guard)
+```
+
+`gen index` derives a **deterministic** index — the judgments/claims ledgers, session-record counts per lane (newest date from the *filename*, the tool's one recency truth), and a docs map (first-heading titles, filename fallback; generated views and session bases excluded) — everything sorted, links **relative to the out file's directory** (CTX-05 resolves a doc's links against its own dir; a root-relative link would redden the consumer's own check). It writes over its own marker or into absence and **refuses a file without the marker** (move it aside or pass a different `--out` — never paste the marker onto a hand-written file).
+
+`gen --check` discovers marked views over the tracked∪walked pool with **uncapped reads** (a size-capped read would silently green a big drifted view), regenerates each in memory, and byte-compares. Zero marked views → exit 0, trivially green — the pre-adoption state. Drift → exit 1 with a **verbatim-runnable remedy** derived from the invocation itself (a vendored consumer has no `baseline` on PATH), plus the honesty clauses: the drift may predate your PR, and a vendor bump changes the generator's shape — regenerate with the new version and commit the view alongside it. An unknown kind or an unreadable view exits 1 named, never silently skipped. Wire it as an **advisory CI job — a visibly red job outside the required set, never `continue-on-error: true`** (a green job with a buried ✗ pays the friction and destroys the signal). Residual, documented: a vendored tree's own marked views ride the discovery pool; an alien kind there fails loudly and the remedy names the vendored-skill-older cause.
+
+**Admit provenance (`inputs_digest`).** Every `baseline admit` run now prints one receipt line — `provenance: inputs_digest <12hex> · head <sha> → target <sha> · descriptor <blob-oid> · rules <version> · <n> check run(s)|checks not consulted · anchor #<n> <state>|none` — and mirrors the same fields in `--json` under `provenance`. The digest is a **pure function** over the six ruled inputs (head SHA, target SHA, the descriptor's blob OID at the target, rules version, check-run `(name, conclusion, head_sha)` tuples full-tuple-sorted, anchored-issue state); a closed or unreachable plane digests as the *value* `not-consulted` — two runs that consulted different planes always digest differently. Provenance is **refusal-inert**: its assembly never contributes a refusal, a result row, or a summary count. Equality-at-a-glance is its one job today; V3's merge-ref binding is the consumer it was shaped for.
 
 ## Configuration
 
@@ -279,10 +322,12 @@ Every rule also declares **`sources`** (which ground-truth planes it reads: tree
 
 ### Change governance (3)
 
+GOV-01/02 are **live asserts on the readable surface** since M6b (`forge-protection` kind, deterministic): `GET /repos/:nwo/rules/branches/:b` first (a plain read), the branch `protected` flag second (classic protection only — with the rules endpoint unreadable, `protected: false` can never assert "no protection"), the classic `/protection` endpoint only under the explicit `BASELINE_GOV_ADMIN=1` opt-in (it needs an admin token). A token-scoped denial is **SKIP("protection unreadable with this token")**, never source-loss; offline/at-rest they SKIP honestly — a committed ruleset *file* proves nothing about enforcement, so the old file greps are gone.
+
 | ID | Rule | Severity | Profile |
 |---|---|---|---|
-| GOV-01 | Merge protection is declared in-repo | 🟡 warn | core |
-| GOV-02 | Strict/up-to-date merges and conversation resolution enabled | 🟡 warn | core |
+| GOV-01 | Merge protection is active on the default branch | 🟡 warn | core |
+| GOV-02 | Strict/up-to-date merges and conversation resolution enforced | 🟡 warn | core |
 | GOV-03 | CODEOWNERS exists and names an owner | 🟡 warn | core |
 
 ### Community & onboarding (3)
@@ -360,17 +405,26 @@ All run **only** on a non-default branch of a repo declaring the lane family (`w
 
 Cross-tier contradictions (C36) a stateless worker must resolve **first** — the same `derive/divergence` answer `orient` headlines, evaluated as rules through check's lane-world plumbing (one derivation, two surfaces). A firing DIV rule tags **DIVERGED** — its own verdict in the scorecard and `summary.diverged` in `--json` — while the **exit code stays unchanged** (severity warn until M7's promotion): divergence demands a human resolution, not a red build. Deterministic by construction (the forge SAID the issue is closed); an `unknown` issue state is never divergence. All three derive from committed forge replay in fixtures (`_fixture.json` `forge_replay` + `bare_origin` — the golden harness materializes a local bare origin and a replay dir, so lane verdicts pin without a network).
 
-### Repo descriptor (1)
+### Merge admission (1)
+
+| ID | Rule | Severity | Profile |
+|---|---|---|---|
+| MERGE-02 | No unmerged sister-lane dependencies (`Baseline-Stacked-On` declares a stack) | 🟡 warn → promoted at M7 | core |
+
+Admit-context only. Deterministic from the git plane alone: a sister lane whose shared history with HEAD reaches past the target tip has unmerged commits inside this admission (C32). The `Baseline-Stacked-On: lane/<N>` trailer (whole-token, anywhere in the admitted range) declares the stack and lifts the finding. MERGE-01 (admission re-derivation) is the `admit` command itself; MERGE-03 (post-merge revalidation) is reconcile's cron (M6b) — neither is a rule, by ruling.
+
+### Repo descriptor (2)
 
 | ID | Rule | Severity | Profile |
 |---|---|---|---|
 | DESC-01 | Repo descriptor present and valid | 🟡 warn | core |
+| DESC-03 | A descriptor change carries its judgment in the same range | 🔴 blocker (admit only) | core |
 
-Declared identity, not a guess: a schema-validated `baseline.repo.json` (`type`, `lifecycle`, `maturity`, `owner`, `workflow`, `anchoring`) is the one stored intent every applicability/severity derivation consumes. Absent or invalid → warn + scaffold; the `type` supersedes filesystem auto-detection.
+Declared identity, not a guess: a schema-validated `baseline.repo.json` (`type`, `lifecycle`, `maturity`, `owner`, `workflow`, `anchoring`) is the one stored intent every applicability/severity derivation consumes. Absent or invalid → warn + scaffold; the `type` supersedes filesystem auto-detection. **DESC-03** (M6a, deterministic — blocker is lawful): `baseline.repo.json` in the admitted range's diff with no same-range judgment whose `subject` is exactly `baseline.repo.json` refuses admission; the posture-weakening classification (the schema's `x-strictness` ladders — workflow/anchoring/maturity — plus gate-consumed set-rules and `join_keys` shrink, `src/derive/posture.mjs`) rides the finding text as M7's per-axis policy seam. FLOW-06 keeps the same pair as a *check-context* advisory — disjoint contexts, one predicate judged once per run.
 
 ## Check kinds (how the runner verifies, with zero deps)
 
-`any-file` (glob presence; `mode:absent`, `tracked_only`, `allow`) · `grep` (regex present/absent/all over contents; `tracked_only`) · `file-contains` (file exists AND matches) · `json-field` (parse JSON, assert a dotted path) · `any-of` (pass if any alternative passes) · `command` (run the bootstrap; `repeat`) · `md-links` (relative markdown links resolve) · `doc-freshness` (frontmatter date within a window) · `adr-status` / `adr-forward-link` (decision-record status + resolvable supersede links) · `required-files` (a config list exists + non-empty) · `path-integrity` (backticked paths in docs resolve) · `version-consistency` (runtime major agrees across `.nvmrc`/CI/Dockerfile/`engines`) · `dockerfile-digest` (`FROM` pinned by `@sha256`) · `status-stamp` · `config-nonempty` · `claims-field` / `claims-citations` · `signoff` · `descriptor` (`baseline.repo.json` present + schema-valid) · the M5c lane-world kinds — `lane-anchor` / `lane-next-filled` / `lane-namespace` / `lane-record-pushed` / `lane-lease` / `div-anchor-closed` / `div-next-closed` / `div-closes-closed` — which evaluate through ONE lazy gathering (the same derivation `orient` renders and `lane reclaim` gates on), degrade to labeled SKIPs offline, and never spawn `gh` unless a lane rule actually runs.
+`any-file` (glob presence; `mode:absent`, `tracked_only`, `allow`) · `grep` (regex present/absent/all over contents; `tracked_only`) · `file-contains` (file exists AND matches) · `json-field` (parse JSON, assert a dotted path) · `any-of` (pass if any alternative passes) · `command` (run the bootstrap; `repeat`) · `md-links` (relative markdown links resolve) · `doc-freshness` (frontmatter date within a window) · `adr-status` / `adr-forward-link` (decision-record status + resolvable supersede links) · `required-files` (a config list exists + non-empty) · `path-integrity` (backticked paths in docs resolve) · `version-consistency` (runtime major agrees across `.nvmrc`/CI/Dockerfile/`engines`) · `dockerfile-digest` (`FROM` pinned by `@sha256`) · `status-stamp` · `config-nonempty` · `claims-field` / `claims-citations` · `signoff` · `descriptor` (`baseline.repo.json` present + schema-valid) · the M5c lane-world kinds — `lane-anchor` / `lane-next-filled` / `lane-namespace` / `lane-record-pushed` / `lane-lease` / `div-anchor-closed` / `div-next-closed` / `div-closes-closed` — which evaluate through ONE lazy gathering (the same derivation `orient` renders and `lane reclaim` gates on) and degrade to labeled SKIPs offline · `forge-protection` (M6b — the GOV readable-surface ladder: rules-for-branch, the `protected` flag, the admin-only classic endpoint under `BASELINE_GOV_ADMIN=1`; token-denial SKIPs labeled). Since M6b the lane world is no longer lane-only: GOV-01/02 consult it on every check run of a repo with a declared default branch — one probe + two reads, memoized per run, honestly SKIPped offline.
 
 A rule with a check the runner can't evaluate (bad regex, missing target) degrades to **skip**, never a crash — one broken rule can't take down the run.
 

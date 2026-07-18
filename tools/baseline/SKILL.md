@@ -1,7 +1,7 @@
 ---
 name: baseline
-description: "Use when asked to run baseline, score a repo, check build- or project-readiness, audit a repo against a standard, or adopt/scaffold the project-baseline standard. Runs a zero-dependency Node checker (86 rules across build, tests, security & supply-chain, reproducibility, operability, change-governance, community, context/doc-drift, claims, records & ledger, lane workflow, and divergence), reads the scorecard, and helps fix or scaffold what's missing."
-version: 2.3.0
+description: "Use when asked to run baseline, score a repo, check build- or project-readiness, audit a repo against a standard, or adopt/scaffold the project-baseline standard. Runs a zero-dependency Node checker (88 rules across build, tests, security & supply-chain, reproducibility, operability, change-governance, community, context/doc-drift, claims, records & ledger, lane workflow, and divergence), reads the scorecard, and helps fix or scaffold what's missing."
+version: 2.4.0
 author: Adar (AdarGit008)
 license: MIT
 platforms: [linux, macos, windows]
@@ -15,7 +15,7 @@ metadata:
 
 ## Overview
 
-A **testable readiness standard**: 86 rules, each backed by a check a zero-dependency Node runner executes on a repo *at rest*. Blockers fail CI (`exit 1`); the judgment calls a script can't make resolve via a dated **sign-off ledger**. The throughline: *don't trust a written promise — make something check it.* A checklist doc drifts; this is the checklist as an exit code.
+A **testable readiness standard**: 88 rules, each backed by a check a zero-dependency Node runner executes on a repo *at rest*. Blockers fail CI (`exit 1`); the judgment calls a script can't make resolve via a dated **sign-off ledger**. The throughline: *don't trust a written promise — make something check it.* A checklist doc drifts; this is the checklist as an exit code.
 
 Runs natively under **Hermes** and **Claude Code** (and any agent that loads `SKILL.md`). The runner is portable — plain Node, no agent-specific dependency. Source: `github.com/AdarGit008/baseline-skill` (reference repo: `baseline-demo`).
 
@@ -35,9 +35,9 @@ Runs natively under **Hermes** and **Claude Code** (and any agent that loads `SK
 - Hermes: `~/.hermes/skills/software-development/baseline`
 - Claude Code: `~/.claude/skills/baseline`
 
-The unified CLI is **`baseline.mjs`** — `node "<abs>/baseline.mjs" <command>` (`orient`, `check`, `lane`, `log`, `jdg`, `gen`, `scrub`, `help`); `baseline check …` delegates to `check.mjs`, still the checker. Both load the rule set (`rules.json` manifest + `rules/` modules) and `src/` from their own directory, so always invoke **by absolute path**; don't copy them away from the rule set + `src/`. Requires **Node ≥ 18 and `git`** on PATH — if `node` is missing, say so rather than guessing.
+The unified CLI is **`baseline.mjs`** — `node "<abs>/baseline.mjs" <command>` (`check`, `admit`, `reconcile`, `orient`, `lane`, `log`, `jdg`, `gen`, `scrub`, `help`); `baseline check …` delegates to `check.mjs`, still the checker. Both load the rule set (`rules.json` manifest + `rules/` modules) and `src/` from their own directory, so always invoke **by absolute path**; don't copy them away from the rule set + `src/`. Requires **Node ≥ 18 and `git`** on PATH — if `node` is missing, say so rather than guessing.
 
-Co-located files: `baseline.mjs` (CLI entry: orient / check / lane / log / jdg / gen / scrub), `check.mjs` (the checker), `rules.json` + `rules/` (the rule-set manifest + the 86 rules, one module per category), `schema/` (the descriptor schema + the four record schemas), `CONTRACT.md` (the plain-git record forms), `config.example.json`, `templates/` (scaffolds), `config-presets/` (ready-made configs), `hooks/` (SessionStart orient hook + pre-push scrub hook), `REFERENCE.md` (full reference), `GLOSSARY.md` (term definitions).
+Co-located files: `baseline.mjs` (CLI entry: check / admit / reconcile / orient / lane / log / jdg / gen / scrub), `check.mjs` (the checker), `rules.json` + `rules/` (the rule-set manifest + the 88 rules, one module per category), `schema/` (the descriptor schema + the four record schemas), `CONTRACT.md` (the plain-git record forms), `config.example.json`, `templates/` (scaffolds), `config-presets/` (ready-made configs), `hooks/` (SessionStart orient hook + pre-push scrub hook), `REFERENCE.md` (full reference), `GLOSSARY.md` (term definitions).
 
 ## Orientation — the first act
 
@@ -71,6 +71,22 @@ node "$SKILL_DIR/baseline.mjs" lane reclaim <issue> --repo <target>
 ```
 
 - The takeover is an empty child commit under your agent trailer, pushed under an exact-value CAS — a lane that moved mid-reclaim (someone pushed, rewound, or deleted it) rejects and the tool tells you the truth (exit 3: it's active). A dated takeover record is machine-written through `baseline log`, and the issue gets a best-effort comment. **Never bypass the gate with a plain `git push`** — a LIVE lane belongs to its agent; if a live takeover is genuinely sanctioned (agent on leave), record a `deviation` judgment naming the lane and pass `--jdg <id>`.
+
+## Admitting a lane — before it merges (M6a)
+
+A verdict is valid only for the state it evaluated: before merging a lane, re-derive at the merge point —
+
+```bash
+node "$SKILL_DIR/baseline.mjs" admit --repo <target>
+```
+
+- Exit 0 = admitted (advisory warns ride the output); **exit 1 = refused** — the branch is stale against the target (merge/rebase it, rerun), a blocker fired (a descriptor change without its same-PR judgment — DESC-03), or a fact admit genuinely gates on was unreadable; exit 2 = environment (no target, no descriptor at the target). The TARGET branch's descriptor governs the run — editing the descriptor on your own branch changes nothing until it merges, and doing so at all requires a same-PR judgment with subject exactly `baseline.repo.json`.
+
+Every admit verdict carries a `provenance: inputs_digest …` receipt line (and JSON field) naming exactly what it was derived from — head/target shas, the target descriptor's blob OID, rules version, check runs, anchor state; unreachable planes read `not consulted`, never vanish. Paste it into the PR thread when the verdict matters.
+
+For repos that adopt a generated index (`baseline gen index`, default `docs/INDEX.md`): the file's first line is a `baseline:generated` marker — **edit the records, not the file**; `baseline gen --check` in CI reds on drift with the exact regenerate command (zero marked views is trivially green, so un-adopted repos never see it).
+
+On the DEFAULT branch (usually cron, not by hand), **`baseline reconcile`** is the morning-after twin — it re-derives main's standing and files findings as `baseline`-labeled, lifecycle-managed issues (dedup'd, closed when cleared, reopened on recurrence; a human close of an advisory filing is final). `--dry-run` prints the plan without writing. Exit 0 even with findings (the tracker is the alert surface — orient headlines them); exit 1 means delivery itself failed — even with zero findings (a dead cron must not stay green). A behind-or-dirty checkout of the default branch degrades to a labeled report-only run (exit 0, nothing filed); only a HEAD off the default branch's line refuses (exit 2) — it is not a lane command.
 
 ## Recording — the last act
 

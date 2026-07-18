@@ -21,3 +21,16 @@ jobs:
         run: node tools/baseline/check.mjs
       - name: orientation survey (derived state; degrades without forge auth)
         run: node tools/baseline/baseline.mjs orient --repo .
+  gen-check:
+    # ADVISORY by design: visibly red on drift, outside any required set, and
+    # never continue-on-error (a green job with a buried X destroys the signal).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: generated views in sync (drift prints the exact remedy)
+        run: node tools/baseline/baseline.mjs gen --check --repo .

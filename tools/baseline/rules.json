@@ -1,6 +1,6 @@
 {
   "name": "project-baseline",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "project_types": [
     "node",
     "python",
@@ -27,6 +27,7 @@
     "rules/ops.json",
     "rules/rec.json",
     "rules/flow.json",
+    "rules/merge.json",
     "rules/div.json",
     "rules/desc.json"
   ]

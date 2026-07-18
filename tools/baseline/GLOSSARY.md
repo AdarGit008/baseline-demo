@@ -12,6 +12,21 @@ significant technical decision, its context, and its consequences. ADRs carry a
 `Status` (proposed / accepted / superseded); a superseded one links forward to
 the record that replaced it.
 
+## Admit
+The merge-point revalidation command (M6): *a verdict is valid only for the
+state it evaluated*, so `baseline admit` re-derives against the **target ref's**
+current tip and refuses when the branch is stale (the target tip is not an
+ancestor of HEAD), when an admit-context [blocker](#blocker) fails (DESC-03),
+or when a fact it genuinely gates on is unreadable — while advisory warns ride
+the verdict without ever blocking. The target ref's descriptor governs the run
+(FS1) — a PR cannot weaken the posture that judges it.
+
+## Baseline-Stacked-On
+A commit trailer (`Baseline-Stacked-On: lane/<N>`) declaring that this lane
+deliberately builds on another lane's unmerged commits. MERGE-02 flags
+undeclared sister-lane dependencies; the trailer (whole-token ref match,
+anywhere in the admitted range) turns the same fact into a declared stack.
+
 ## Blast radius
 How far a claim or change reaches if it's wrong. A claim graded by blast radius
 is scored by the damage a false version would do — a throwaway line versus a
@@ -81,6 +96,14 @@ Installing dependencies in a locked, reproducible mode that fails if the
 [lockfile](#lockfile) is out of date (`npm ci`, `pip install --require-hashes`,
 `yarn --frozen-lockfile`) — as opposed to a loose install that can silently drift.
 
+## Generated view
+**Generated view** — a tracked markdown file whose first line is the
+`baseline:generated <kind>` marker: machine-derived from the records, never
+hand-edited. `baseline gen index` writes one (deterministic — sorted content,
+filename dates, no timestamps); `baseline gen --check` regenerates every marked
+view and byte-compares, the advisory CI drift guard. Zero marked views is
+trivially green — adoption is opt-in per repo.
+
 ## Graceful shutdown
 When a service catches a termination signal ([SIGTERM](#sigterm)) and finishes
 in-flight work, closes connections, and exits cleanly instead of dropping
@@ -132,6 +155,22 @@ A file that pins the exact resolved version of every dependency
 (`package-lock.json`, `yarn.lock`, `poetry.lock`). Committing it makes installs
 reproducible across machines and time.
 
+## Merged-while-red
+**Merged-while-red** — a PR that landed on the default branch while its admit
+check had conclusion `failure`: the layer-0 (admin/bypass) valve was used.
+Reconcile detects it at the merged PR's *head* sha (a squash merge's red check
+never appears on the tip) and files the demand for the retroactive break-glass
+judgment whose `subject` names the short merge sha. The demand clears on that
+judgment's existence — the morning-after paperwork is the control, not the
+prevention.
+
+## Mutation channel
+**Mutation channel** — the forge layer's ONLY write path (`makeForge().mutate`),
+used exclusively by reconcile's issue lifecycle. Mode-honest end to end: live
+executes the write; replay asserts the run's ordered plan against committed
+recordings (`mut-NNN.json`) instead of touching the network; `--dry-run` prints
+the plan. A posture-closed forge refuses writes in every mode.
+
 ## Mutation testing
 A technique that deliberately introduces small faults ("mutants") into your code
 to check whether the test suite catches them — a measure of test quality beyond
@@ -172,6 +211,16 @@ opt-in. Rules outside the active profile **skip** and never count against you.
 Verifiable evidence of where an artifact came from and how it was built — for
 releases, a signed record linking a published artifact to the exact source and
 build that produced it.
+
+## Reconcile
+**Reconcile** — `baseline reconcile`, post-merge revalidation of the default
+branch (MERGE-03's dissolution: the cron against main IS the revalidation).
+Read-only toward the repo; its write surface is the issue tracker, where findings
+live as `baseline`-labeled issues under a complete dedup lifecycle keyed
+`baseline:<id>:<subject>` (file → comment on change → close when positively
+re-evaluated ok → reopen on recurrence of a bot-closed issue; a human close of an
+advisory filing is a judgment and stays closed). Findings never redden the cron;
+a cron that cannot deliver does.
 
 ## repolinter
 An open-source tool (originally from GitHub) that checks a repository against

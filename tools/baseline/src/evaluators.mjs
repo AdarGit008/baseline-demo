@@ -1,11 +1,12 @@
-// The ~36 declarative check kinds. makeEvalCheck(ctx) closes over the repo index,
+// The ~38 declarative check kinds. makeEvalCheck(ctx) closes over the repo index,
 // resolved config, and run flags; evalCheck(c, rule) -> {ok:true|false|null, detail, soft?, signoff?}.
 // ok:null means "not evaluable here" and always tags SKIP — one broken rule can't take down the run.
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
 import { DAY, asArr, parseDate, daysAgo, getPath, reOf, nonEmpty, stripLineComment, isAdrFile, statusOf, FRONTMATTER_RE, nowUTC, globToRe, issueOf, refs as issueRefs, closes as issueCloses } from './util.mjs'
-import { DESCRIPTOR_FILE } from './descriptor.mjs'
+import { DESCRIPTOR_FILE, DESCRIPTOR_SCHEMA } from './descriptor.mjs'
+import { classifyPostureDiff } from './derive/posture.mjs'
 import { scan, loadAllowlist } from './scrub.mjs'
 import { loadClaims, CLAIM_RECORD_GLOB } from './claims.mjs'
 import { extractNext } from './facts/git.mjs'
@@ -14,9 +15,9 @@ import { deriveDivergence } from './derive/divergence.mjs'
 const DIV_REF_CAP = 20 // a hostile next: line with dozens of #N must not fan out a forge query each
 
 // Every check kind evalCheck() knows how to run. --self-check flags any rule referencing one not in here.
-export const CHECK_KINDS = new Set(['any-of', 'implies', 'workflow-permissions', 'doc-code-age', 'any-file', 'grep', 'file-contains', 'json-field', 'command', 'status-stamp', 'adr-status', 'adr-forward-link', 'config-nonempty', 'required-files', 'doc-freshness', 'md-links', 'path-integrity', 'version-consistency', 'dockerfile-digest', 'claims-field', 'claims-citations', 'signoff', 'descriptor', 'records-append-only', 'records-scrub', 'records-one-home', 'branch-session-record', 'branch-atomicity', 'lane-anchor', 'lane-next-filled', 'lane-namespace', 'lane-record-pushed', 'lane-lease', 'div-anchor-closed', 'div-next-closed', 'div-closes-closed'])
+export const CHECK_KINDS = new Set(['any-of', 'implies', 'workflow-permissions', 'doc-code-age', 'any-file', 'grep', 'file-contains', 'json-field', 'command', 'status-stamp', 'adr-status', 'adr-forward-link', 'config-nonempty', 'required-files', 'doc-freshness', 'md-links', 'path-integrity', 'version-consistency', 'dockerfile-digest', 'claims-field', 'claims-citations', 'signoff', 'descriptor', 'records-append-only', 'records-scrub', 'records-one-home', 'branch-session-record', 'branch-atomicity', 'lane-anchor', 'lane-next-filled', 'lane-namespace', 'lane-record-pushed', 'lane-lease', 'div-anchor-closed', 'div-next-closed', 'div-closes-closed', 'descriptor-change', 'merge-sister-dep', 'forge-protection'])
 
-export function makeEvalCheck({ repo, cfg, NO_EXEC, SIGNOFF, JDGS, DESCRIPTOR, BRANCH = null, DEFAULT_BRANCH = null, LANEWORLD = null }) {
+export function makeEvalCheck({ repo, cfg, NO_EXEC, SIGNOFF, JDGS, DESCRIPTOR, BRANCH = null, DEFAULT_BRANCH = null, LANEWORLD = null, ADMITWORLD = null }) {
   const { REPO, FILES, HEAD, match, read, readText, readRaw, gitCommitISO, gitObjExists, gitIsAncestor, gitLag, gitIsShallow, gitNameStatus, gitDiffNames, gitBlobAt, gitCatFile } = repo
   // The lane rules diff against where the branch diverged: the descriptor-declared
   // default branch, preferring whichever of local/origin twin is NEWER (a stale
@@ -700,6 +701,134 @@ export function makeEvalCheck({ repo, cfg, NO_EXEC, SIGNOFF, JDGS, DESCRIPTOR, B
       return hits.length
         ? { ok: false, diverged: true, detail: `${hits.slice(0, 3).map(h => h.text).join('; ')}${hits.length > 3 ? ` (+${hits.length - 3})` : ''} — done-with-nothing-merged; retarget the PR or close it` }
         : { ok: true, detail: `${prs.length} open PR(s), none closes an already-closed issue` }
+    }
+
+    // ---- M6b: GOV-01/02 live asserts on the READABLE surface (the ruled ladder:
+    // rules-for-branch is a plain read; the branch `protected` flag is plain; the
+    // classic /protection endpoint needs admin and is consulted only under the
+    // explicit BASELINE_GOV_ADMIN=1 opt-in). run() nulls every failure identically,
+    // so 403-vs-down derives honestly: rules null while the branch's metadata
+    // answers = unreadable WITH THIS TOKEN (SKIP, never source-loss); both null =
+    // the forge plane degraded (the probe/posture reason rides the SKIP). The
+    // `protected` flag reflects CLASSIC protection only — with the rules endpoint
+    // unreadable, protected:false can NEVER assert "no protection" (a ruleset may
+    // exist unseen), so that leg SKIPs rather than guessing. Deterministic: every
+    // PASS/FAIL is a live boolean read of enforcement, not a grep of intent. ----
+
+    if (k === 'forge-protection') {
+      // subject guard BEFORE the world: LANEWORLD() forces the forge probe (3 gh
+      // spawns), pure waste when the SKIP is already decided by an undeclared branch
+      if (!DEFAULT_BRANCH) return { ok: null, detail: 'default branch undeclared (set ground_truth_boundary.default_branch) — protection has no subject' }
+      const w = LANEWORLD ? LANEWORLD() : null
+      if (!w) return { ok: null, detail: 'no lane world assembled — forge asserts n/a in this runner' }
+      if (!w.forge.available) return { ok: null, detail: `protection unreadable (${w.forge.reason})` }
+      const rules = w.forge.branchRules(DEFAULT_BRANCH)
+      const meta = w.forge.branchMeta(DEFAULT_BRANCH)
+      if (!Array.isArray(rules)) {
+        // rules endpoint gave nothing — distinguish token-scoped denial from a dead plane
+        if (meta) {
+          if (c.gov === 'protection' && meta.protected === true) return { ok: true, detail: `classic branch protection active on ${DEFAULT_BRANCH} (rules endpoint unreadable with this token)` }
+          return { ok: null, detail: `protection unreadable with this token (rules endpoint denied; ${DEFAULT_BRANCH} metadata readable${meta.protected === false ? ', protected flag false — but the flag cannot see rulesets, so absence is not provable' : ''})` }
+        }
+        return { ok: null, detail: w.forge.source === 'replay' ? 'protection unreadable (no branch-rules replay fixture)' : `protection facts unreadable (${w.forge.reason || 'forge queries failed'})` }
+      }
+      // Merge-PROTECTIVE rule types only: rulesets aggregate across layers (org+repo)
+      // and carry non-merge rules too — a signatures-only or deletion-only ruleset
+      // protects nothing GOV-01's title names, and a first-of-type .find would miss a
+      // later layer's parameters, so every bit is checked with .some over ALL rules.
+      const PROTECTIVE = new Set(['pull_request', 'required_status_checks', 'non_fast_forward', 'merge_queue'])
+      const protective = [...new Set(rules.map(r => r.type))].filter(t => PROTECTIVE.has(t)).sort()
+      if (c.gov === 'protection') {
+        // GOV-01: is MERGE protection actually active on the default branch?
+        if (protective.length) return { ok: true, detail: `active merge-protective rules on ${DEFAULT_BRANCH}: ${protective.join(', ')}` }
+        const other = [...new Set(rules.map(r => r.type))].sort()
+        const rulesNote = other.length ? `rules active (${other.join(', ')}) but none protects merges` : 'rules: none'
+        if (meta?.protected === true) return { ok: true, detail: `classic branch protection active on ${DEFAULT_BRANCH} (${rulesNote})` }
+        if (meta && meta.protected === false) return { ok: false, detail: `no active merge protection on ${DEFAULT_BRANCH} (${rulesNote}; protected flag false) — anyone can force-push or merge red; create a ruleset requiring the baseline checks` }
+        return { ok: null, detail: `rules readable (${rulesNote}) but ${DEFAULT_BRANCH} metadata is not — classic protection state unknowable with this token` }
+      }
+      // GOV-02: strict up-to-date + conversation resolution — .some across EVERY rule
+      // (layered rulesets enforce the union), classic ladder when rulesets lack the bits
+      const strict = rules.some(r => r.type === 'required_status_checks' && r.parameters?.strict_required_status_checks_policy === true)
+      const conv = rules.some(r => r.type === 'pull_request' && r.parameters?.required_review_thread_resolution === true)
+      if (strict && conv) return { ok: true, detail: `ruleset on ${DEFAULT_BRANCH} enforces strict up-to-date checks and conversation resolution` }
+      const missing = [!strict && 'strict up-to-date status checks (strict_required_status_checks_policy)', !conv && 'required conversation resolution (required_review_thread_resolution)'].filter(Boolean)
+      if (meta?.protected === true) {
+        // classic protection may enforce what the rulesets don't — never FAIL past it
+        if (process.env.BASELINE_GOV_ADMIN) {
+          const p = w.forge.branchProtection(DEFAULT_BRANCH)
+          if (p) {
+            const s = strict || p.required_status_checks?.strict === true
+            const cv = conv || p.required_conversation_resolution?.enabled === true
+            if (s && cv) return { ok: true, detail: `${DEFAULT_BRANCH} enforces strict up-to-date checks and conversation resolution (ruleset + classic, admin read)` }
+            const still = [!s && 'strict up-to-date status checks', !cv && 'required conversation resolution'].filter(Boolean)
+            return { ok: false, detail: `${DEFAULT_BRANCH} does not enforce: ${still.join(' + ')} (ruleset + classic read)` }
+          }
+          return { ok: null, detail: w.forge.source === 'replay' ? 'classic protection active but no branch-protection replay fixture' : `classic protection active but /protection denied even under BASELINE_GOV_ADMIN — the token is not admin on this repo` }
+        }
+        return { ok: null, detail: `ruleset lacks ${missing.join(' + ')} but classic protection is active — its settings need an admin token to read; opt in: BASELINE_GOV_ADMIN=1` }
+      }
+      if (meta && meta.protected === false) {
+        return rules.length
+          ? { ok: false, detail: `ruleset on ${DEFAULT_BRANCH} does not enforce: ${missing.join(' + ')} — a stale branch can merge green` }
+          : { ok: false, detail: `no active protection on ${DEFAULT_BRANCH} — strict up-to-date and conversation resolution are unset` }
+      }
+      return { ok: null, detail: `rules readable but ${DEFAULT_BRANCH} metadata is not — classic protection state unknowable with this token` }
+    }
+
+    // ---- M6a admit-context kinds — both read through ADMITWORLD (the target-ref
+    // world `baseline admit` assembles: target tip, range diff, added judgments,
+    // sister lane refs). In any run without an ADMITWORLD they are unrepresentable
+    // (contexts gating excludes them from check), and the guard keeps that honest. ----
+
+    if (k === 'descriptor-change') {
+      // DESC-03: a descriptor change in the admitted range carries its judgment in the
+      // SAME range — subject exactly the descriptor filename (ONE spelling, the one
+      // constant the tool owns; CONTRACT.md, FLOW-06's fix, and the jdg hint all emit
+      // it). Deterministic: diff names + record subjects; the weakening classification
+      // (x-strictness ladders + gate-consumed set-rules) rides the finding text — it is
+      // M7's per-axis policy seam, not this verdict's fork.
+      if (!ADMITWORLD) return { ok: null, detail: 'admit-context only (no target world assembled)' }
+      const { targetRef, changed, addedJudgments, headDescriptor, jdgCapped } = ADMITWORLD
+      if (changed === null) return { ok: null, detail: `diff ${targetRef}...HEAD failed — change scope unreadable (admit refuses on this as gating-source loss)` }
+      // belt over the no-renames diff: a descriptor ABSENT at HEAD while the target has
+      // a valid one IS a change, however the diff spelled it
+      const touched = changed.includes(DESCRIPTOR_FILE) || !headDescriptor?.present
+      if (!touched) return { ok: true, detail: `descriptor untouched in ${targetRef}...HEAD` }
+      const weak = classifyPostureDiff(DESCRIPTOR?.valid ? DESCRIPTOR.data : null, headDescriptor?.valid ? headDescriptor.data : null, DESCRIPTOR_SCHEMA)
+      const weakNote = weak.length ? ` — WEAKENING: ${weak.slice(0, 3).join('; ')}${weak.length > 3 ? ` (+${weak.length - 3} more)` : ''}` : ' (no posture axis weakened)'
+      const jdgs = addedJudgments.filter(j => j.record && j.record.subject === DESCRIPTOR_FILE && j.record.review_by >= TODAY)
+      if (!jdgs.length) {
+        const near = addedJudgments.filter(j => j.record && j.record.subject !== DESCRIPTOR_FILE)
+        const hint = near.length ? ` (a judgment rode this range but its subject is '${near[0].record.subject}', not '${DESCRIPTOR_FILE}' — the matcher is the exact filename)` : jdgCapped ? ` (judgment parsing capped at 500 added records — a qualifying one beyond the cap does not count; shrink the range)` : ''
+        return { ok: false, detail: `${DESCRIPTOR_FILE} changed with no same-range judgment${weakNote}${hint} — baseline jdg new --kind deviation --subject "${DESCRIPTOR_FILE}" --reason "why the posture changed" --review-by <date>, in this PR` }
+      }
+      return { ok: true, detail: `descriptor change carries ${jdgs[0].record.id} (subject ${DESCRIPTOR_FILE}, review by ${jdgs[0].record.review_by})${weakNote}` }
+    }
+
+    if (k === 'merge-sister-dep') {
+      // MERGE-02: a lane admitted atop ANOTHER lane's unmerged commits depends on work
+      // that may never land (C32). Deterministic from the git plane alone: sister =
+      // a local remote-tracking lane ref whose shared history with HEAD reaches past
+      // the target tip. The Baseline-Stacked-On trailer (whole-token ref match in the
+      // admitted range) declares the stack and lifts the finding. Lands warn; M7 promotes.
+      if (!ADMITWORLD) return { ok: null, detail: 'admit-context only (no target world assembled)' }
+      const { targetTip, headSha, sisters, stackedOn, mergeBase, sistersCapped } = ADMITWORLD
+      const w = LANEWORLD()
+      if (!w.ns) return { ok: null, detail: 'no lanes.namespace declared — sister lanes underivable' }
+      if (!sisters.length) return { ok: true, detail: 'no sister lanes known locally (as of the last fetch)' }
+      const deps = [], declared = []
+      for (const s of sisters) {
+        if (s.tip === headSha) continue // this PR's own lane seen under its remote-tracking name (a local branch-name mismatch is not a dependency)
+        const mb = mergeBase('HEAD', s.tip)
+        if (!mb) continue // no common history — unrelated lane
+        if (gitIsAncestor(mb, targetTip) === 0) continue // shared history is already in the target
+        ;(stackedOn.includes(s.ref) ? declared : deps).push(s.ref)
+      }
+      const capNote = sistersCapped ? ' (sister list capped at 100)' : ''
+      if (deps.length) return { ok: false, detail: `HEAD contains unmerged commits from ${deps.join(', ')}${capNote} — land/rebase first, or declare the stack: trailer 'Baseline-Stacked-On: ${deps[0]}'` }
+      if (declared.length) return { ok: true, detail: `stacked on ${declared.join(', ')} — declared via Baseline-Stacked-On${capNote}` }
+      return { ok: true, detail: `no unmerged sister-lane dependencies (${sisters.length} sister(s) checked)${capNote}` }
     }
 
     return { ok: null, detail: 'unknown check kind: ' + k }

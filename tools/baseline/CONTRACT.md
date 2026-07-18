@@ -92,21 +92,52 @@ A judgment is **dated, owned, scoped, reasoned, and it expires**:
 - Author with `baseline jdg new …`; evaluate with `baseline jdg check`
   (M6's reconcile runs the same evaluation on cron and files issues).
 
-### Descriptor changes (DESC-03, enforced at M6)
+### Descriptor changes (DESC-03, ENFORCED since M6a)
 
 A PR that touches `baseline.repo.json` carries a JDG **in the same PR** whose
 `subject` is exactly `baseline.repo.json` (the descriptor filename — the one
-constant the tool owns), snapshotting the new posture in
-`expected_state` with a tripwire on the load-bearing axis. Posture-*weakening*
-diffs become blocker-severity at admit (M6).
+constant the tool owns; FLOW-06's fix text and this page emit the same spelling,
+and `admit` matches nothing cleverer than the exact string). Snapshot the new
+posture in `expected_state` with a tripwire on the changed axis — that part is
+craft, not machine-enforced. At admit, ANY descriptor change without that
+same-range judgment is a **blocker refusal**; the *weakening* classification
+(the schema's declared `x-strictness` ladders + gate-consumed set-rules) rides
+the finding text — deterministic, and M7's per-axis policy seam. Tuning knobs
+(`lease_ttl`, `staleness`, `lanes.families`, `engine_pin`) are posture-neutral.
 
-### Break-glass (FS5, enforced at M6)
+### Break-glass (FS5, ENFORCED since M6a)
 
-A `break-glass` JDG is the **only** override of a fail-closed `admit`/`reconcile`
-gate. It names its `gate`, it expires fast, and it **lands on main via its own
-prior PR — it cannot ride inside the change it unblocks.** Solo-mode honesty:
-self-merge remains possible; the control is audit-visibility + expiry, not
-multi-party authorization.
+A `break-glass` JDG is the **only** tool-side override of a fail-closed
+`admit`/`reconcile` gate. It names its `gate`, it expires fast, and it **lands
+on main via its own prior PR — it cannot ride inside the change it unblocks**
+(admit honors it from the TARGET ref only; one riding the incoming branch
+relieves nothing). It relieves **gating-source loss alone** — never staleness
+(data-plane truth: re-derive) and never DESC-03 (whose relief is its own
+same-PR judgment). The relief PR is landable whenever tree+history facts are
+intact: a range that is nothing but schema-valid judgment additions carrying an
+unexpired `break-glass (gate: admit)` takes the **JDG-only admission path** —
+judged from tree+history alone, the forge closed and labeled, so the valve
+never depends on the forge plane whose loss it typically relieves. (A git-plane
+outage — no target, no history — falls to layer 0 below.) Solo-mode honesty: self-merge remains
+possible; the control is audit-visibility + expiry, not multi-party
+authorization.
+
+**Layer 0, named:** a repo admin can always bypass branch protection — that
+valve exists whether documented or not, so the discipline is documented
+instead: bypassed or merged-while-red changes are detected by reconcile's
+post-merge revalidation (M6b), which files the issue demanding the
+retroactive break-glass JDG. The morning-after paperwork is the control.
+
+### Admit binding — the three rungs
+
+1. **Merge queue** (org-owned repos): admit on the merge ref with the inputs
+   digest — deferred to V3; no repo in this project's reach can host one.
+2. **Required check + "require branches up to date"** (public repos any plan;
+   private needs a paid plan): the real merge-point binding — the up-to-date
+   requirement forces re-derivation at the merge-relevant SHA.
+3. **Private repo, free plan: nothing is bindable.** Admit is advisory there,
+   and the honest guarantee is **detection, not prevention**: reconcile files
+   the merged-while-red issue. No rung pretends to be a stronger one.
 
 ## The scrub gate
 
@@ -165,9 +196,100 @@ gates, the labels, and the honesty — never a private data model.
   DIV findings (closed issue under an active lane, `next:` at a dead issue, a PR
   closing a closed issue) are contradictions to RESOLVE, not warnings to mute.
 
+## Reconcile — the morning-after loop (M6b)
+
+`baseline reconcile` revalidates the default branch on cron and files what it
+finds as issues. **No writes to the repo or main, ever** — the issue tracker is
+the whole write surface, and every filing is lifecycle-managed:
+
+- identity: an HTML marker `<!-- baseline:<id>:<subject> fp:<hash> -->` plus the
+  **`baseline` label** (filter/mute it in your own inbox — that's the designed
+  affordance). Keep BOTH intact when editing a filed issue: removing the label
+  drops the issue from the dedup scan (the next run files a duplicate), and
+  anyone who can apply the label can plant a marker that absorbs a key's
+  lifecycle — the label is a collaborator-trust surface, not a security boundary.
+- transitions: absent→file · changed→comment (the fingerprint collapses shas,
+  ages, and dates — an aging finding never re-comments) · cleared→close naming
+  the sha (**only on positive re-evaluation** — a rule that SKIPped cannot clear
+  its issue) · recurred→reopen the SAME issue when the close was reconcile's own
+  (the marker carries a `bot-closed` stamp).
+- **a human close is a judgment.** Close an advisory (engine-row) filing yourself
+  and it stays closed — recurrence earns at most one comment on new content. The
+  deterministic-integrity classes reopen over any close: an expired/tripped
+  judgment, a landed secret, a merged-while-red demand.
+- bounds: 10 creations+reopens per run; overflow rides ONE rollup issue that
+  self-drains over subsequent runs. A truncated issue scan suppresses creates.
+
+**Merged-while-red** (the layer-0 bypass's paperwork): reconcile sweeps the
+newest merged PRs and reads their **head** shas' check runs — a check named
+`*admit*` with conclusion `failure` on a merged PR files the demand for the
+retroactive judgment. The convention is exact: the judgment's `subject` names
+the **short (7) merge sha** —
+
+    baseline jdg new --kind break-glass --gate admit --subject "<short-sha>" \
+      --reason "why it merged red" --review-by <date>
+
+The demand clears on the judgment's **existence** at the tip (a lapsed one does
+not zombie-reopen the incident — its expiry is the sweep's own finding), and is
+never auto-closed by the tip moving on.
+
+**The binding law.** Findings bind to the sha they evaluated, so filings require
+the working tree to BE the fetched tip, clean. Behind-but-on-the-line or dirty
+degrades to a labeled report-only run (nothing filed, recipe printed); a HEAD off
+the target line refuses. Exit 1 means **delivery failed** — including a clean run
+that could not read the tracker (a dead cron must not stay green). Relief: an
+unexpired `break-glass (gate: reconcile)` on the default branch — gate:reconcile's
+one consumer — covers live outages only, never a replay-plan mismatch, and never
+the `multi-lane-local` posture (which closes the write surface by declaration:
+that's exit 2, not an outage).
+
+**Demo/consumer wiring (specced, not discovered).** `baseline-reconcile.yml`:
+
+    on:
+      schedule:
+        - cron: '17 5 * * *'   # GitHub may delay/auto-disable after 60d inactivity — orient's headline is the backstop
+      workflow_dispatch:
+    permissions:
+      contents: read
+      issues: write
+    jobs:
+      reconcile:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0              # full history: the sweep reads blobs at the tip
+          - run: node <skill>/baseline.mjs reconcile --repo .
+            env:
+              GH_TOKEN: ${{ github.token }}   # unauthenticated gh rate-limits at 60/hr
+    # exit 0 with findings is CORRECT (the tracker is the alert surface);
+    # exit 1 means the cron itself is broken — that's the red worth having.
+
+## Generated views (M6c)
+
+A file whose first line is `<!-- baseline:generated <kind> — do not edit by
+hand; regenerate: baseline gen <kind> -->` is machine-derived: **edit the
+records it derives from, never the file** — the next regeneration replaces your
+edit, and `gen --check` reds the CI until someone regenerates. `gen index`
+never overwrites a file WITHOUT that marker (move it aside or pick a different
+`--out`; do not paste the marker onto a hand-written file — that authorizes the
+clobber the refusal exists to prevent). Wire `gen --check` as an **advisory CI
+job**: visibly red, outside the required set, and never `continue-on-error:
+true` — a green job with a buried failure pays the friction and destroys the
+signal. On a vendor bump, regenerate views with the NEW vendored skill and
+commit them alongside the bump.
+
+## Admit provenance (M6c)
+
+Every admit verdict carries its receipt: `provenance: inputs_digest <hash> ·
+head → target · descriptor <blob-oid> · rules <version> · checks · anchor`.
+Two runs with the same digest derived from the same world; any consulted input
+moving — including a plane's availability — changes the hash ('not consulted'
+is a digested VALUE, not a hole). Provenance never refuses, never warns, never
+counts: it is the receipt, not a gate. V3's merge-ref binding is its intended
+consumer; today it is the paste-into-the-PR-thread proof of what was judged.
+
 ## Reserved (lands later, documented now)
 
-- **M6 — admit/reconcile:** merge-point re-derivation, fail-closed with
-  break-glass relief; reconcile files findings as issues, read-only on main.
 - **M7 — contraction:** status-doc surfaces retired; `signoff.json` and the
   legacy `CLAIMS.json` dual-reads end; pointer install + lock.

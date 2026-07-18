@@ -1,0 +1,23 @@
+name: baseline-admit
+# Merge-point revalidation, ADVISORY: a verdict is valid only for the state it
+# evaluated. Exit 1 = refused (stale against main / blocker / gating-source
+# loss). Goes into the required set only via the ruleset, only after a green
+# real-PR cycle — the flip is a separate, transcripted act (see CONTRACT.md's
+# binding ladder).
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  admit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0              # ancestry + target-ref reads need main present
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: admit against origin/main (provenance line in the log)
+        run: node tools/baseline/baseline.mjs admit --repo .
+        env:
+          GH_TOKEN: ${{ github.token }}   # the live trap: unauthenticated gh rate-limits at 60/hr

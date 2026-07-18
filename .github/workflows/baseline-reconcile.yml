@@ -1,0 +1,30 @@
+name: baseline-reconcile
+# The morning-after loop (MERGE-03's dissolution): revalidates main nightly and
+# files findings as lifecycle-managed, `baseline`-labeled issues. Exit 0 with
+# findings is CORRECT — the tracker is the alert surface (orient headlines it);
+# exit 1 means the cron itself could not deliver, the red worth having.
+# First scheduled run doubles as the ruled live probes: the GOV rules-for-branch
+# read and issues:write, both with the default Actions token.
+on:
+  schedule:
+    - cron: '17 5 * * *'   # GitHub may delay/auto-disable after 60d inactivity — orient's headline is the backstop
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    permissions:               # write scope at JOB level (SEC-11 least-privilege)
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0              # full history: the sweep reads blobs at the tip
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: reconcile main (findings file as issues)
+        run: node tools/baseline/baseline.mjs reconcile --repo .
+        env:
+          GH_TOKEN: ${{ github.token }}   # unauthenticated gh rate-limits at 60/hr

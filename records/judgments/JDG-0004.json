@@ -1,0 +1,10 @@
+{
+  "record": "judgment/1",
+  "id": "JDG-0004",
+  "kind": "sign-off",
+  "date": "2026-07-19",
+  "by": "AdarGit008",
+  "subject": "CTX-04",
+  "reason": "Re-minted from the V1 signoff.json ledger at the M7b transition (original sign-off: AdarGit008, 2026-07-05). No consolidated/frozen docs; decisions live in per-file ADRs with Status — still true today.",
+  "review_by": "2027-01-19"
+}

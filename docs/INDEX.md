@@ -3,11 +3,15 @@
 
 _Generated view — edit the records, not this file. Regenerate: `baseline gen index`._
 
-## Judgments (1)
+## Judgments (5)
 
 | id | kind | subject | review by |
 |---|---|---|---|
 | JDG-0001 | deviation | descriptor change: lanes.families [adopt/*, release/*] declared | 2026-10-15 |
+| JDG-0002 | sign-off | TEST-03 | 2027-01-19 |
+| JDG-0003 | sign-off | TEST-04 | 2027-01-19 |
+| JDG-0004 | sign-off | CTX-04 | 2027-01-19 |
+| JDG-0005 | deviation | baseline.repo.json | 2027-01-19 |
 
 ## Claims (0)
 

@@ -4,7 +4,6 @@
   "type": "node",
   "lifecycle": "production",
   "maturity": "released",
-  "owner": "AdarGit008",
   "workflow": "multi-lane",
   "anchoring": "strict",
   "ground_truth_boundary": { "forge": "github", "default_branch": "main" },

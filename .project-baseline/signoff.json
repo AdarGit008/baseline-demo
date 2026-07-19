@@ -1,6 +1,0 @@
-{
-  "_help": "Dated human sign-off ledger for the 'manual' rules a script can't check.",
-  "TEST-03": { "by": "AdarGit008", "date": "2026-07-05", "note": "No must-never-exist invariants in this tiny demo; nothing to pin." },
-  "TEST-04": { "by": "AdarGit008", "date": "2026-07-05", "note": "add() acceptance (numbers in -> sum; non-number -> TypeError) matches the test exactly." },
-  "CTX-04": { "by": "AdarGit008", "date": "2026-07-05", "note": "No consolidated/frozen docs; decisions live in per-file ADRs with Status." }
-}

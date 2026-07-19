@@ -1,6 +1,11 @@
 # Start here
 
-last-verified: 212beb2621ede58cabf99f2fc4171500f24ded55 2026-07-05
+Status is derived, not stored — compute it fresh at read time:
 
-This repo's status lives here (single owner). The stamp names the last
-reconciled commit; CTX-01 accepts a recent ancestor as fresh.
+```bash
+node tools/baseline/baseline.mjs orient --repo .
+```
+
+Decisions live in [`decisions/`](decisions/); sessions and judgments in
+[`records/`](../records/). The V1 hand-maintained stamp this doc used to
+carry retired with the V2 contract (`tools/baseline/MIGRATION.md`).

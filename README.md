@@ -29,10 +29,16 @@ node tools/baseline/check.mjs     # score this repo against project-baseline
 The bundled standard lives in [`tools/baseline/`](tools/baseline/); CI runs it
 as a required gate on every push (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
-## The status stamp
+## Status is derived
 
-`docs/start-here.md` carries a [`last-verified: <sha> <date>` stamp](tools/baseline/GLOSSARY.md#last-verified-stamp)
-naming the last commit whose state was reconciled — CTX-01 accepts any commit
-within a few of `HEAD` as fresh, so a stamp that names the previous commit (as
-here) passes. Reconcile it whenever you wrap up a change; a stamp that points
-off-branch or falls far behind `HEAD` fails.
+State is computed at read time — tree + history + forge, never stored:
+
+```bash
+node tools/baseline/baseline.mjs orient --repo .
+```
+
+The V1 [`last-verified:` stamp](tools/baseline/GLOSSARY.md#last-verified-stamp)
+this repo once kept in `docs/start-here.md` retired with the V2 contract —
+CTX-12 now blocks the stored-status signature in any tracked doc, and
+[`tools/baseline/MIGRATION.md`](tools/baseline/MIGRATION.md) documents the
+exit this repo took.

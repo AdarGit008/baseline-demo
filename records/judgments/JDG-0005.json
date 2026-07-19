@@ -1,0 +1,10 @@
+{
+  "record": "judgment/1",
+  "id": "JDG-0005",
+  "kind": "deviation",
+  "date": "2026-07-19",
+  "by": "AdarGit008",
+  "subject": "baseline.repo.json",
+  "reason": "M7b contraction: the schema retired the owner key (identity lives at the forge; the descriptor declares posture). This PR drops owner in the same range as the vendor re-pin — required together, since an owner-bearing worktree descriptor under the new strict read turns the posture off. No other descriptor field changes; posture is not weakened.",
+  "review_by": "2027-01-19"
+}

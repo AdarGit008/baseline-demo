@@ -1,0 +1,10 @@
+{
+  "record": "judgment/1",
+  "id": "JDG-0002",
+  "kind": "sign-off",
+  "date": "2026-07-19",
+  "by": "AdarGit008",
+  "subject": "TEST-03",
+  "reason": "Re-minted from the V1 signoff.json ledger at the M7b transition (original sign-off: AdarGit008, 2026-07-05). No must-never-exist invariants in this tiny demo; nothing to pin — still true today.",
+  "review_by": "2027-01-19"
+}

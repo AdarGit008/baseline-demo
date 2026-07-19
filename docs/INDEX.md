@@ -13,10 +13,11 @@ _Generated view — edit the records, not this file. Regenerate: `baseline gen i
 
 _none_
 
-## Session records (3)
+## Session records (4)
 
 - `adopt/v2-m4c-78-rules` — 1 record(s), newest 2026-07-13
 - `lane/10` — 1 record(s), newest 2026-07-18
+- `lane/14` — 1 record(s), newest 2026-07-19
 - `lane/8` — 1 record(s), newest 2026-07-15
 
 ## Docs (2)
